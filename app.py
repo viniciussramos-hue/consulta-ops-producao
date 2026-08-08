@@ -187,10 +187,10 @@ if termo_busca:
         # --- CÁLCULOS DE TEMPO E EFICIÊNCIA ---
         df_filtrado['Standard Ajustado'] = np.where(df_filtrado['Quantidade básica'] == 0, 1, df_filtrado['Quantidade básica'])
         df_filtrado['Tempo Previsto (h)'] = df_filtrado['Quantidade operação'] / df_filtrado['Standard Ajustado']
-        df_filtrado['Tempo OP Formatado'] = df_filtrado['Tempo Previsto (h)'].apply(formatar_tempo)
+        df_filtrado['Tempo OP'] = df_filtrado['Tempo Previsto (h)'].apply(formatar_tempo)
         
         df_filtrado['Tempo Produzido (h)'] = df_filtrado['Qtd.boa total confirmada'] / df_filtrado['Standard Ajustado']
-        df_filtrado['Tempo Produzido Formatado'] = df_filtrado['Tempo Produzido (h)'].apply(formatar_tempo)
+        df_filtrado['Tempo Produzido'] = df_filtrado['Tempo Produzido (h)'].apply(formatar_tempo)
         
         df_filtrado['Eficiencia_Num'] = np.where(
             df_filtrado['Tempo Previsto (h)'] > 0,
@@ -203,29 +203,28 @@ if termo_busca:
             axis=1
         )
 
-        # Mapeamento completo e correto de todas as colunas
+        # Mapeamento incluindo a coluna 'Especificação 2' como Tempo Máquina
         colunas_para_exibir = {
-            'Ordem': 'OP',
+            'Ordem': 'OP', 
+            'Operação': 'Op. Roteiro',
             'Centro de trabalho': 'CT',
-            'Descrição do centro de trabalho': 'Descrição CT',
-            'Txt.breve operação': 'Desc. Operação',
-            'Especificação 2': 'Temp. Maq.',
-            'Operação': 'Operação',
-            'Quantidade operação': 'Quantidade',
+            'Txt.breve operação': 'Descrição Operação',
+            'Qtd.boa total confirmada': 'Qtd Boa',
             'Quantidade básica': 'Standard',
-            'Tempo OP Formatado': 'Tempo OP',
-            'Tempo Produzido Formatado': 'T. Produzido',
+            'Especificação 2': 'Tempo Máquina',
+            'Tempo OP': 'T. Previsto',
+            'Tempo Produzido': 'T. Produzido',
             'Eficiência': 'Efic.'
         }
         
         colunas_existentes = {k: v for k, v in colunas_para_exibir.items() if k in df_filtrado.columns}
         df_tabela = df_filtrado[list(colunas_existentes.keys())].rename(columns=colunas_existentes)
         
-        if 'Operação' in df_tabela.columns:
-            df_tabela['Operação'] = pd.to_numeric(df_tabela['Operação'], errors='coerce').fillna(0).astype(int)
+        if 'Op. Roteiro' in df_tabela.columns:
+            df_tabela['Op. Roteiro'] = pd.to_numeric(df_tabela['Op. Roteiro'], errors='coerce').fillna(0).astype(int)
             
-        if 'OP' in df_tabela.columns and 'Operação' in df_tabela.columns:
-            df_tabela = df_tabela.sort_values(by=['OP', 'Operação'])
+        if 'OP' in df_tabela.columns and 'Op. Roteiro' in df_tabela.columns:
+            df_tabela = df_tabela.sort_values(by=['OP', 'Op. Roteiro'])
             
         st.dataframe(df_tabela, use_container_width=True, hide_index=True)
         
