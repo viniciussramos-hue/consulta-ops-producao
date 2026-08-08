@@ -48,7 +48,6 @@ def carregar_dados():
         df['Ordem'] = df['Ordem'].fillna(0).astype(int).astype(str)
         df['Material'] = df['Material'].fillna('').astype(str)
         
-        # Incluída a 'Especificação 2' (Coluna T) aqui para evitar que venha vazia
         colunas_numericas = ['Quantidade operação', 'Quantidade básica', 'Qtd.boa total confirmada', 'Operação', 'Especificação 2']
         for col in colunas_numericas:
             if col in df.columns:
@@ -135,44 +134,45 @@ if termo_busca:
             </div>
         """, unsafe_allow_html=True)
         
+        # Criação do DataFrame de OPs vinculadas para o filtro BI
+        df_resumo_ops = df_filtrado.groupby('Ordem').agg({
+            'Quantidade operação': 'max',
+            'Qtd.boa total confirmada': 'max',
+            'Status do sistema': 'first' 
+        }).reset_index()
+        
+        def definir_status_op(row):
+            status_sap = str(row['Status do sistema']).upper()
+            qtd_planejada = row['Quantidade operação']
+            qtd_produzida = row['Qtd.boa total confirmada']
+            
+            if 'ENC' in status_sap or 'TECO' in status_sap:
+                return '✅ Finalizada'
+            elif qtd_produzida >= qtd_planejada and qtd_planejada > 0:
+                 return '✅ Finalizada (Qtd Atingida)'
+            else:
+                return '⏳ Aberta'
+                
+        df_resumo_ops['Situação da OP'] = df_resumo_ops.apply(definir_status_op, axis=1)
+        df_resumo_ops = df_resumo_ops.rename(columns={
+            'Ordem': 'Nº da OP',
+            'Quantidade operação': 'Qtd. Planejada',
+            'Qtd.boa total confirmada': 'Qtd. Produzida',
+            'Status do sistema': 'Status SAP'
+        })
+        
         # --- TABELA SUSPENSA INTERATIVA (RESUMO DE OPs VINCULADAS) ---
         if tipo_busca == "Código Maxion (Material)":
             with st.expander("📂 Resumo das OPs vinculadas (Filtro BI)", expanded=True):
                 st.markdown("💡 *Toque em uma OP abaixo para filtrar os detalhes:*")
-                
-                df_resumo_ops = df_filtrado.groupby('Ordem').agg({
-                    'Quantidade operação': 'max',
-                    'Qtd.boa total confirmada': 'max',
-                    'Status do sistema': 'first' 
-                }).reset_index()
-                
-                def definir_status_op(row):
-                    status_sap = str(row['Status do sistema']).upper()
-                    qtd_planejada = row['Quantidade operação']
-                    qtd_produzida = row['Qtd.boa total confirmada']
-                    
-                    if 'ENC' in status_sap or 'TECO' in status_sap:
-                        return '✅ Finalizada'
-                    elif qtd_produzida >= qtd_planejada and qtd_planejada > 0:
-                         return '✅ Finalizada (Qtd Atingida)'
-                    else:
-                        return '⏳ Aberta'
-                        
-                df_resumo_ops['Situação da OP'] = df_resumo_ops.apply(definir_status_op, axis=1)
-                
-                df_resumo_ops = df_resumo_ops.rename(columns={
-                    'Ordem': 'Nº da OP',
-                    'Quantidade operação': 'Qtd. Planejada',
-                    'Qtd.boa total confirmada': 'Qtd. Produzida',
-                    'Status do sistema': 'Status SAP'
-                })
                 
                 evento_tabela = st.dataframe(
                     df_resumo_ops[['Nº da OP', 'Qtd. Planejada', 'Qtd. Produzida', 'Status SAP', 'Situação da OP']], 
                     use_container_width=True, 
                     hide_index=True,
                     on_select="rerun",
-                    selection_mode="single-row"
+                    selection_mode="single-row",
+                    key="tabela_resumo_ops"
                 )
                 
                 linhas_selecionadas = evento_tabela.selection.rows
@@ -204,7 +204,7 @@ if termo_busca:
             axis=1
         )
 
-        # Mapeamento incluindo a 'Especificação 2' renomeada como 'Temp. Maq.'
+        # Mapeamento com todas as colunas garantidas
         colunas_para_exibir = {
             'Ordem': 'OP',
             'Centro de trabalho': 'CT',
@@ -219,6 +219,7 @@ if termo_busca:
             'Eficiência': 'Efic.'
         }
         
+        # Garante que apenas colunas presentes no dataframe sejam tratadas
         colunas_existentes = {k: v for k, v in colunas_para_exibir.items() if k in df_filtrado.columns}
         df_tabela = df_filtrado[list(colunas_existentes.keys())].rename(columns=colunas_existentes)
         
