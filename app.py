@@ -136,9 +136,11 @@ if termo_busca:
         
         df_filtrado = df_base.copy()
         
-        # --- TABELA SUSPENSA INTERATIVA (RESUMO DE OPs VINCULADAS) ---
+        # --- TABELA SUSPENSA INTERATIVA (RESUMO DE OPs VINCULADAS COM CLIQUE BI) ---
         if tipo_busca == "Código Maxion (Material)":
             with st.expander("📂 Resumo das OPs vinculadas (Filtro BI)", expanded=True):
+                st.markdown("💡 *Toque ou clique em uma linha da tabela abaixo para filtrar os detalhes instantaneamente:*")
+                
                 df_resumo_ops = df_base.groupby('Ordem').agg({
                     'Quantidade operação': 'max',
                     'Qtd.boa total confirmada': 'max',
@@ -166,20 +168,26 @@ if termo_busca:
                     'Status do sistema': 'Status SAP'
                 })
                 
-                st.dataframe(
+                # Tabela interativa com captura de clique
+                evento_tabela = st.dataframe(
                     df_resumo_ops[['Nº da OP', 'Qtd. Planejada', 'Qtd. Produzida', 'Status SAP', 'Situação da OP']], 
                     use_container_width=True, 
-                    hide_index=True
+                    hide_index=True,
+                    on_select="rerun",
+                    selection_mode="single-row",
+                    key="tabela_bi_ops"
                 )
                 
-                lista_ops_material = ["Todas"] + df_resumo_ops['Nº da OP'].tolist()
-                op_selecionada_bi = st.selectbox("🎯 Filtrar detalhes por OP específica:", lista_ops_material)
-                
-                if op_selecionada_bi != "Todas":
-                    df_filtrado = df_base[df_base['Ordem'] == op_selecionada_bi].copy()
-                    st.success(f"Filtro ativo: Exibindo detalhes apenas da OP **{op_selecionada_bi}**")
+                # Tratamento seguro da linha clicada
+                linhas_selecionadas = evento_tabela.selection.rows
+                if len(linhas_selecionadas) > 0:
+                    idx_clicado = linhas_selecionadas[0]
+                    if idx_clicado < len(df_resumo_ops):
+                        op_clicada = df_resumo_ops.iloc[idx_clicado]['Nº da OP']
+                        df_filtrado = df_base[df_base['Ordem'] == op_clicada].copy()
+                        st.success(f"🎯 Filtro Ativo por Clique: Exibindo detalhes apenas da OP **{op_clicada}**")
                 else:
-                    st.info("Exibindo detalhes de **todas** as OPs vinculadas.")
+                    st.info("ℹ️ Exibindo detalhes de **todas** as OPs vinculadas (clique em uma linha acima para filtrar).")
         
         st.markdown("### 📋 Detalhes das Operações")
         
@@ -233,7 +241,6 @@ if termo_busca:
                 <div style="font-weight: bold; margin-bottom: 12px; color: #fff; font-size: 0.95rem;">📱 Resumo por Operação (Foco Celular):</div>
         """, unsafe_allow_html=True)
         
-        # Prepara a sub-tabela apenas com Operação, Standard e Tempo OP
         df_resumo_celular = df_filtrado.copy()
         if 'Operação' in df_resumo_celular.columns:
             df_resumo_celular['Operação'] = pd.to_numeric(df_resumo_celular['Operação'], errors='coerce').fillna(0).astype(int)
