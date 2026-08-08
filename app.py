@@ -166,14 +166,12 @@ if termo_busca:
                     'Status do sistema': 'Status SAP'
                 })
                 
-                # Exibição limpa da tabela de resumo sem conflitos de índice
                 st.dataframe(
                     df_resumo_ops[['Nº da OP', 'Qtd. Planejada', 'Qtd. Produzida', 'Status SAP', 'Situação da OP']], 
                     use_container_width=True, 
                     hide_index=True
                 )
                 
-                # Seletor direto e seguro para filtrar a OP desejada sem erros de índice
                 lista_ops_material = ["Todas"] + df_resumo_ops['Nº da OP'].tolist()
                 op_selecionada_bi = st.selectbox("🎯 Filtrar detalhes por OP específica:", lista_ops_material)
                 
@@ -204,7 +202,6 @@ if termo_busca:
             axis=1
         )
 
-        # Mapeamento estrito com todas as colunas
         colunas_para_exibir = {
             'Ordem': 'OP',
             'Centro de trabalho': 'CT',
@@ -230,30 +227,30 @@ if termo_busca:
             
         st.dataframe(df_tabela, use_container_width=True, hide_index=True)
         
-        # --- RESUMO FINAL SIMPLIFICADO ---
-        total_previsto_h = df_filtrado['Tempo Previsto (h)'].sum()
-        total_produzido_h = df_filtrado['Tempo Produzido (h)'].sum()
-        eficiencia_global = (total_produzido_h / total_previsto_h * 100) if total_previsto_h > 0 else 0
-        
-        st.markdown(f"""
+        # --- RESUMO FINAL FOCADO EM CELULAR (OPERAÇÃO, STANDARD E TEMPO OP) ---
+        st.markdown("""
             <div class="summary-box">
-                <div style="font-weight: bold; margin-bottom: 8px; color: #fff;">📱 Resumo Consolidado (Foco Celular):</div>
-                <div style="display: flex; justify-content: space-between; text-align: center;">
-                    <div>
-                        <div class="metric-label">Total Previsto</div>
-                        <div class="metric-value">{formatar_tempo(total_previsto_h)}</div>
-                    </div>
-                    <div>
-                        <div class="metric-label">Total Produzido</div>
-                        <div class="metric-value">{formatar_tempo(total_produzido_h)}</div>
-                    </div>
-                    <div>
-                        <div class="metric-label">Aderência Global</div>
-                        <div class="metric-value">{eficiencia_global:.1f}%</div>
-                    </div>
-                </div>
-            </div>
+                <div style="font-weight: bold; margin-bottom: 12px; color: #fff; font-size: 0.95rem;">📱 Resumo por Operação (Foco Celular):</div>
         """, unsafe_allow_html=True)
+        
+        # Prepara a sub-tabela apenas com Operação, Standard e Tempo OP
+        df_resumo_celular = df_filtrado.copy()
+        if 'Operação' in df_resumo_celular.columns:
+            df_resumo_celular['Operação'] = pd.to_numeric(df_resumo_celular['Operação'], errors='coerce').fillna(0).astype(int)
+            df_resumo_celular = df_resumo_celular.sort_values(by='Operação')
+            
+        df_resumo_celular['Standard'] = df_resumo_celular['Quantidade básica']
+        df_resumo_celular['Tempo OP'] = df_resumo_celular['Tempo OP Formatado']
+        
+        colunas_celular = ['Operação', 'Txt.breve operação', 'Standard', 'Tempo OP']
+        colunas_celular_existentes = [c for c in colunas_celular if c in df_resumo_celular.columns]
+        
+        df_view_celular = df_resumo_celular[colunas_celular_existentes].rename(columns={
+            'Txt.breve operação': 'Descrição Operação'
+        })
+        
+        st.dataframe(df_view_celular, use_container_width=True, hide_index=True)
+        st.markdown("</div>", unsafe_allow_html=True)
         
     else:
         st.warning("Nenhum dado encontrado para a busca informada.")
