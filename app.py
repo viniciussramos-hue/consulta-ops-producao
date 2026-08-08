@@ -130,7 +130,7 @@ if termo_busca:
             </div>
         """, unsafe_allow_html=True)
         
-        # --- NOVA TABELA SUSPENSA INTERATIVA (RESUMO DE OPs VINCULADAS) ---
+        # --- TABELA SUSPENSA INTERATIVA (RESUMO DE OPs VINCULADAS) ---
         if tipo_busca == "Código Maxion (Material)":
             with st.expander("📂 Resumo das OPs vinculadas a este Material", expanded=True):
                 st.markdown("💡 **Interação BI:** Selecione uma linha na tabela abaixo para filtrar os detalhes das operações lá no final da página.")
@@ -162,7 +162,6 @@ if termo_busca:
                     'Status do sistema': 'Status SAP'
                 })
                 
-                # O parâmetro on_select="rerun" transforma a tabela em um elemento clicável
                 evento_tabela = st.dataframe(
                     df_resumo_ops[['Nº da OP', 'Qtd. Planejada', 'Qtd. Produzida', 'Status SAP', 'Situação da OP']], 
                     use_container_width=True, 
@@ -171,7 +170,6 @@ if termo_busca:
                     selection_mode="single-row"
                 )
                 
-                # Se o usuário clicou em uma linha, aplicamos o filtro no df principal
                 linhas_selecionadas = evento_tabela.selection.rows
                 if len(linhas_selecionadas) > 0:
                     op_clicada = df_resumo_ops.iloc[linhas_selecionadas[0]]['Nº da OP']
@@ -182,7 +180,7 @@ if termo_busca:
         
         st.markdown("### 📋 Detalhes das Operações")
         
-        # Cálculos de tempo e eficiência
+        # --- CÁLCULOS DE TEMPO E EFICIÊNCIA ---
         df_filtrado['Standard Ajustado'] = np.where(df_filtrado['Quantidade básica'] == 0, 1, df_filtrado['Quantidade básica'])
         df_filtrado['Tempo Previsto (h)'] = df_filtrado['Quantidade operação'] / df_filtrado['Standard Ajustado']
         df_filtrado['Tempo OP'] = df_filtrado['Tempo Previsto (h)'].apply(formatar_tempo)
@@ -190,18 +188,19 @@ if termo_busca:
         df_filtrado['Tempo Produzido (h)'] = df_filtrado['Qtd.boa total confirmada'] / df_filtrado['Standard Ajustado']
         df_filtrado['Tempo Produzido'] = df_filtrado['Tempo Produzido (h)'].apply(formatar_tempo)
         
-        coluna_tempo_real = 'Duração real' 
+        # Lógica Atualizada da Eficiência: Baseada no Tempo Produzido vs Tempo Previsto
+        # Calcula numericamente
+        df_filtrado['Eficiencia_Num'] = np.where(
+            df_filtrado['Tempo Previsto (h)'] > 0,
+            (df_filtrado['Tempo Produzido (h)'] / df_filtrado['Tempo Previsto (h)']) * 100,
+            0
+        )
         
-        if coluna_tempo_real in df_filtrado.columns:
-            df_filtrado[coluna_tempo_real] = pd.to_numeric(df_filtrado[coluna_tempo_real], errors='coerce').fillna(0)
-            df_filtrado['Eficiência'] = np.where(
-                df_filtrado[coluna_tempo_real] > 0,
-                (df_filtrado['Tempo Previsto (h)'] / df_filtrado[coluna_tempo_real]) * 100,
-                0
-            )
-            df_filtrado['Eficiência'] = df_filtrado['Eficiência'].map('{:.1f}%'.format)
-        else:
-            df_filtrado['Eficiência'] = "Falta Coluna Tempo Real"
+        # Formata para texto (% se houver tempo produzido, senão um traço)
+        df_filtrado['Eficiência'] = df_filtrado.apply(
+            lambda row: f"{row['Eficiencia_Num']:.1f}%" if row['Tempo Produzido (h)'] > 0 else "-",
+            axis=1
+        )
 
         # Organizando colunas para visualização
         colunas_para_exibir = {
