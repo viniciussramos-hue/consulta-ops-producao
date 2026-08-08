@@ -48,7 +48,7 @@ def carregar_dados():
         df['Ordem'] = df['Ordem'].fillna(0).astype(int).astype(str)
         df['Material'] = df['Material'].fillna('').astype(str)
         
-        colunas_numericas = ['Quantidade operação', 'Quantidade básica', 'Qtd.boa total confirmada', 'Operação', 'Especificação 2']
+        colunas_numericas = ['Quantidade operação', 'Quantidade básica', 'Qtd.boa total confirmada', 'Operação']
         for col in colunas_numericas:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
@@ -203,7 +203,7 @@ if termo_busca:
             axis=1
         )
 
-        # Mapeamento incluindo a coluna 'Especificação 2' como Tempo Máquina
+        # Mapeamento incluindo a coluna 'Operação' (do roteiro)
         colunas_para_exibir = {
             'Ordem': 'OP', 
             'Operação': 'Op. Roteiro',
@@ -211,7 +211,6 @@ if termo_busca:
             'Txt.breve operação': 'Descrição Operação',
             'Qtd.boa total confirmada': 'Qtd Boa',
             'Quantidade básica': 'Standard',
-            'Especificação 2': 'Tempo Máquina',
             'Tempo OP': 'T. Previsto',
             'Tempo Produzido': 'T. Produzido',
             'Eficiência': 'Efic.'
@@ -228,7 +227,7 @@ if termo_busca:
             
         st.dataframe(df_tabela, use_container_width=True, hide_index=True)
         
-        # --- RESUMO FINAL SIMPLIFICADO ---
+        # --- RESUMO FINAL SIMPLIFICADO (OTIMIZADO PARA CELULAR) ---
         total_previsto_h = df_filtrado['Tempo Previsto (h)'].sum()
         total_produzido_h = df_filtrado['Tempo Produzido (h)'].sum()
         eficiencia_global = (total_produzido_h / total_previsto_h * 100) if total_previsto_h > 0 else 0
