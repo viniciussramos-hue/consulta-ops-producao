@@ -48,7 +48,8 @@ def carregar_dados():
         df['Ordem'] = df['Ordem'].fillna(0).astype(int).astype(str)
         df['Material'] = df['Material'].fillna('').astype(str)
         
-        colunas_numericas = ['Quantidade operação', 'Quantidade básica', 'Qtd.boa total confirmada', 'Operação']
+        # Incluída a 'Especificação 2' (Coluna T) aqui para evitar que venha vazia
+        colunas_numericas = ['Quantidade operação', 'Quantidade básica', 'Qtd.boa total confirmada', 'Operação', 'Especificação 2']
         for col in colunas_numericas:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
@@ -187,10 +188,10 @@ if termo_busca:
         # --- CÁLCULOS DE TEMPO E EFICIÊNCIA ---
         df_filtrado['Standard Ajustado'] = np.where(df_filtrado['Quantidade básica'] == 0, 1, df_filtrado['Quantidade básica'])
         df_filtrado['Tempo Previsto (h)'] = df_filtrado['Quantidade operação'] / df_filtrado['Standard Ajustado']
-        df_filtrado['Tempo OP'] = df_filtrado['Tempo Previsto (h)'].apply(formatar_tempo)
+        df_filtrado['Tempo OP Formatado'] = df_filtrado['Tempo Previsto (h)'].apply(formatar_tempo)
         
         df_filtrado['Tempo Produzido (h)'] = df_filtrado['Qtd.boa total confirmada'] / df_filtrado['Standard Ajustado']
-        df_filtrado['Tempo Produzido'] = df_filtrado['Tempo Produzido (h)'].apply(formatar_tempo)
+        df_filtrado['Tempo Produzido Formatado'] = df_filtrado['Tempo Produzido (h)'].apply(formatar_tempo)
         
         df_filtrado['Eficiencia_Num'] = np.where(
             df_filtrado['Tempo Previsto (h)'] > 0,
@@ -203,31 +204,33 @@ if termo_busca:
             axis=1
         )
 
-        # Mapeamento incluindo a coluna 'Operação' (do roteiro)
+        # Mapeamento incluindo a 'Especificação 2' renomeada como 'Temp. Maq.'
         colunas_para_exibir = {
-            'Ordem': 'OP', 
-            'Operação': 'Op. Roteiro',
+            'Ordem': 'OP',
             'Centro de trabalho': 'CT',
-            'Txt.breve operação': 'Descrição Operação',
-            'Qtd.boa total confirmada': 'Qtd Boa',
+            'Descrição do centro de trabalho': 'Descrição CT',
+            'Txt.breve operação': 'Desc. Operação',
+            'Especificação 2': 'Temp. Maq.',
+            'Operação': 'Operação',
+            'Quantidade operação': 'Quantidade',
             'Quantidade básica': 'Standard',
-            'Tempo OP': 'T. Previsto',
-            'Tempo Produzido': 'T. Produzido',
+            'Tempo OP Formatado': 'Tempo OP',
+            'Tempo Produzido Formatado': 'T. Produzido',
             'Eficiência': 'Efic.'
         }
         
         colunas_existentes = {k: v for k, v in colunas_para_exibir.items() if k in df_filtrado.columns}
         df_tabela = df_filtrado[list(colunas_existentes.keys())].rename(columns=colunas_existentes)
         
-        if 'Op. Roteiro' in df_tabela.columns:
-            df_tabela['Op. Roteiro'] = pd.to_numeric(df_tabela['Op. Roteiro'], errors='coerce').fillna(0).astype(int)
+        if 'Operação' in df_tabela.columns:
+            df_tabela['Operação'] = pd.to_numeric(df_tabela['Operação'], errors='coerce').fillna(0).astype(int)
             
-        if 'OP' in df_tabela.columns and 'Op. Roteiro' in df_tabela.columns:
-            df_tabela = df_tabela.sort_values(by=['OP', 'Op. Roteiro'])
+        if 'OP' in df_tabela.columns and 'Operação' in df_tabela.columns:
+            df_tabela = df_tabela.sort_values(by=['OP', 'Operação'])
             
         st.dataframe(df_tabela, use_container_width=True, hide_index=True)
         
-        # --- RESUMO FINAL SIMPLIFICADO (OTIMIZADO PARA CELULAR) ---
+        # --- RESUMO FINAL SIMPLIFICADO ---
         total_previsto_h = df_filtrado['Tempo Previsto (h)'].sum()
         total_produzido_h = df_filtrado['Tempo Produzido (h)'].sum()
         eficiencia_global = (total_produzido_h / total_previsto_h * 100) if total_previsto_h > 0 else 0
