@@ -203,16 +203,17 @@ if termo_busca:
             axis=1
         )
 
-        # Mapeamento incluindo a coluna 'Especificação 2' como Tempo Máquina
+        # Mapeamento exato com a ordem solicitada: CT, Descrição CT, Desc. Operação, Temp. Maq., Operação, Quantidade, Standard, Tempo OP
         colunas_para_exibir = {
-            'Ordem': 'OP', 
-            'Operação': 'Op. Roteiro',
+            'Ordem': 'OP',
             'Centro de trabalho': 'CT',
-            'Txt.breve operação': 'Descrição Operação',
-            'Qtd.boa total confirmada': 'Qtd Boa',
+            'Descrição do centro de trabalho': 'Descrição CT',
+            'Txt.breve operação': 'Desc. Operação',
+            'Especificação 2': 'Temp. Maq.',
+            'Operação': 'Operação',
+            'Quantidade operação': 'Quantidade',
             'Quantidade básica': 'Standard',
-            'Especificação 2': 'Tempo Máquina',
-            'Tempo OP': 'T. Previsto',
+            'Tempo OP': 'Tempo OP',
             'Tempo Produzido': 'T. Produzido',
             'Eficiência': 'Efic.'
         }
@@ -220,11 +221,11 @@ if termo_busca:
         colunas_existentes = {k: v for k, v in colunas_para_exibir.items() if k in df_filtrado.columns}
         df_tabela = df_filtrado[list(colunas_existentes.keys())].rename(columns=colunas_existentes)
         
-        if 'Op. Roteiro' in df_tabela.columns:
-            df_tabela['Op. Roteiro'] = pd.to_numeric(df_tabela['Op. Roteiro'], errors='coerce').fillna(0).astype(int)
+        if 'Operação' in df_tabela.columns:
+            df_tabela['Operação'] = pd.to_numeric(df_tabela['Operação'], errors='coerce').fillna(0).astype(int)
             
-        if 'OP' in df_tabela.columns and 'Op. Roteiro' in df_tabela.columns:
-            df_tabela = df_tabela.sort_values(by=['OP', 'Op. Roteiro'])
+        if 'OP' in df_tabela.columns and 'Operação' in df_tabela.columns:
+            df_tabela = df_tabela.sort_values(by=['OP', 'Operação'])
             
         st.dataframe(df_tabela, use_container_width=True, hide_index=True)
         
