@@ -15,18 +15,26 @@ st.markdown("""
 <style>
     .header-box {
         background-color: #1e1e1e;
-        padding: 20px;
+        padding: 15px;
         border-radius: 10px;
         border-left: 5px solid #004a8f; 
+        margin-bottom: 15px;
+    }
+    .summary-box {
+        background-color: #1e1e1e;
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 5px solid #28a745;
+        margin-top: 20px;
         margin-bottom: 20px;
     }
     .metric-value {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         font-weight: bold;
         color: #66b3ff;
     }
     .metric-label {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         color: #ccc;
     }
 </style>
@@ -62,7 +70,7 @@ def formatar_tempo(horas_decimais):
     return f"{int(h):02d}:{int(m):02d}:{int(s):02d}"
 
 # --- CABEÇALHO DO APP ---
-st.title("🏭 Consulta de OPs e Eficiência de Produção")
+st.title("🏭 Consulta de OPs e Eficiência")
 st.markdown("---")
 
 df_op = carregar_dados()
@@ -72,7 +80,7 @@ if df_op is None:
     st.stop()
 
 # --- TABELA DE CONSULTA ESTÁTICA (EXPANSÍVEL) ---
-with st.expander("📊 Consultar Tabela de Classificação de Operações de Estampagem"):
+with st.expander("📊 Tabela de Classificação de Estampagem"):
     tabela_estampagem = pd.DataFrame({
         "Classificação operações de estampagem": [
             "Simples", "LE + LD", "Dupla", "Conjugada (2 ferramentas)",
@@ -84,8 +92,6 @@ with st.expander("📊 Consultar Tabela de Classificação de Operações de Est
         "Standard/part number": [150, 150, 300, 150, 300, 150, 300, 150, 300, 300, 150, 150],
         "Tempo máquina/part number": ["1", "0,5", "1", "0,5", "0,5", "0,33", "0,33", "0,25", "0,25", "0,5", "0,25", "0,25"]
     })
-    
-    st.markdown("### Exemplo 150 batidas/hora")
     st.table(tabela_estampagem)
 
 # --- ÁREA DE BUSCA ---
@@ -117,23 +123,21 @@ if termo_busca:
         
         st.markdown(f"""
             <div class="header-box">
-                <div style="display: flex; justify-content: space-between;">
-                    <div>
-                        <div class="metric-label">Cód Maxion (Material)</div>
-                        <div class="metric-value">{cod_maxion}</div>
-                    </div>
-                    <div>
-                        <div class="metric-label">Descrição MP</div>
-                        <div class="metric-value">{desc_material}</div>
-                    </div>
+                <div>
+                    <div class="metric-label">Cód Maxion (Material)</div>
+                    <div class="metric-value">{cod_maxion}</div>
+                </div>
+                <div style="margin-top: 8px;">
+                    <div class="metric-label">Descrição MP</div>
+                    <div class="metric-value" style="font-size: 0.95rem;">{desc_material}</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
         
         # --- TABELA SUSPENSA INTERATIVA (RESUMO DE OPs VINCULADAS) ---
         if tipo_busca == "Código Maxion (Material)":
-            with st.expander("📂 Resumo das OPs vinculadas a este Material", expanded=True):
-                st.markdown("💡 **Interação BI:** Selecione uma linha na tabela abaixo para filtrar os detalhes das operações lá no final da página.")
+            with st.expander("📂 Resumo das OPs vinculadas (Filtro BI)", expanded=True):
+                st.markdown("💡 *Toque em uma OP abaixo para filtrar os detalhes:*")
                 
                 df_resumo_ops = df_filtrado.groupby('Ordem').agg({
                     'Quantidade operação': 'max',
@@ -174,9 +178,9 @@ if termo_busca:
                 if len(linhas_selecionadas) > 0:
                     op_clicada = df_resumo_ops.iloc[linhas_selecionadas[0]]['Nº da OP']
                     df_filtrado = df_filtrado[df_filtrado['Ordem'] == op_clicada]
-                    st.success(f"Filtro Ativo: Exibindo detalhes apenas da OP **{op_clicada}** abaixo.")
+                    st.success(f"Filtro ativo: OP **{op_clicada}**")
                 else:
-                    st.info("Exibindo detalhes de **todas** as OPs vinculadas. Clique em uma linha acima para filtrar.")
+                    st.info("Exibindo todas as OPs vinculadas.")
         
         st.markdown("### 📋 Detalhes das Operações")
         
@@ -188,45 +192,63 @@ if termo_busca:
         df_filtrado['Tempo Produzido (h)'] = df_filtrado['Qtd.boa total confirmada'] / df_filtrado['Standard Ajustado']
         df_filtrado['Tempo Produzido'] = df_filtrado['Tempo Produzido (h)'].apply(formatar_tempo)
         
-        # Lógica Atualizada da Eficiência: Baseada no Tempo Produzido vs Tempo Previsto
-        # Calcula numericamente
         df_filtrado['Eficiencia_Num'] = np.where(
             df_filtrado['Tempo Previsto (h)'] > 0,
             (df_filtrado['Tempo Produzido (h)'] / df_filtrado['Tempo Previsto (h)']) * 100,
             0
         )
         
-        # Formata para texto (% se houver tempo produzido, senão um traço)
         df_filtrado['Eficiência'] = df_filtrado.apply(
             lambda row: f"{row['Eficiencia_Num']:.1f}%" if row['Tempo Produzido (h)'] > 0 else "-",
             axis=1
         )
 
-        # Organizando colunas para visualização
         colunas_para_exibir = {
             'Ordem': 'OP', 
             'Centro de trabalho': 'CT',
-            'Descrição do centro de trabalho': 'Descrição CT',
-            'Txt.breve operação': 'Desc. Operação',
-            'Operação': 'Operação',
-            'Quantidade operação': 'Quantidade',
-            'Status do sistema': 'Status',
+            'Txt.breve operação': 'Operação',
+            'Qtd.boa total confirmada': 'Qtd Boa',
             'Quantidade básica': 'Standard',
-            'Tempo OP': 'Tempo Previsto',
-            'Tempo Produzido': 'Tempo Produzido',
-            'Eficiência': 'Eficiência'
+            'Tempo OP': 'T. Previsto',
+            'Tempo Produzido': 'T. Produzido',
+            'Eficiência': 'Efic.'
         }
         
         colunas_existentes = {k: v for k, v in colunas_para_exibir.items() if k in df_filtrado.columns}
         df_tabela = df_filtrado[list(colunas_existentes.keys())].rename(columns=colunas_existentes)
         
         if 'Operação' in df_tabela.columns:
-            df_tabela['Operação'] = pd.to_numeric(df_tabela['Operação'], errors='coerce')
+            pass
             
-        if 'OP' in df_tabela.columns and 'Operação' in df_tabela.columns:
-            df_tabela = df_tabela.sort_values(by=['OP', 'Operação'])
+        if 'OP' in df_tabela.columns:
+            df_tabela = df_tabela.sort_values(by=['OP'])
             
         st.dataframe(df_tabela, use_container_width=True, hide_index=True)
+        
+        # --- RESUMO FINAL SIMPLIFICADO (OTIMIZADO PARA CELULAR) ---
+        total_previsto_h = df_filtrado['Tempo Previsto (h)'].sum()
+        total_produzido_h = df_filtrado['Tempo Produzido (h)'].sum()
+        eficiencia_global = (total_produzido_h / total_previsto_h * 100) if total_previsto_h > 0 else 0
+        
+        st.markdown(f"""
+            <div class="summary-box">
+                <div style="font-weight: bold; margin-bottom: 8px; color: #fff;">📱 Resumo Consolidado (Foco Celular):</div>
+                <div style="display: flex; justify-content: space-between; text-align: center;">
+                    <div>
+                        <div class="metric-label">Total Previsto</div>
+                        <div class="metric-value">{formatar_tempo(total_previsto_h)}</div>
+                    </div>
+                    <div>
+                        <div class="metric-label">Total Produzido</div>
+                        <div class="metric-value">{formatar_tempo(total_produzido_h)}</div>
+                    </div>
+                    <div>
+                        <div class="metric-label">Aderência Global</div>
+                        <div class="metric-value">{eficiencia_global:.1f}%</div>
+                    </div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
         
     else:
         st.warning("Nenhum dado encontrado para a busca informada.")
