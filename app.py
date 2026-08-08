@@ -187,10 +187,10 @@ if termo_busca:
         # --- CÁLCULOS DE TEMPO E EFICIÊNCIA ---
         df_filtrado['Standard Ajustado'] = np.where(df_filtrado['Quantidade básica'] == 0, 1, df_filtrado['Quantidade básica'])
         df_filtrado['Tempo Previsto (h)'] = df_filtrado['Quantidade operação'] / df_filtrado['Standard Ajustado']
-        df_filtrado['Tempo OP'] = df_filtrado['Tempo Previsto (h)'].apply(formatar_tempo)
+        df_filtrado['Tempo OP Formatado'] = df_filtrado['Tempo Previsto (h)'].apply(formatar_tempo)
         
         df_filtrado['Tempo Produzido (h)'] = df_filtrado['Qtd.boa total confirmada'] / df_filtrado['Standard Ajustado']
-        df_filtrado['Tempo Produzido'] = df_filtrado['Tempo Produzido (h)'].apply(formatar_tempo)
+        df_filtrado['Tempo Produzido Formatado'] = df_filtrado['Tempo Produzido (h)'].apply(formatar_tempo)
         
         df_filtrado['Eficiencia_Num'] = np.where(
             df_filtrado['Tempo Previsto (h)'] > 0,
@@ -203,7 +203,7 @@ if termo_busca:
             axis=1
         )
 
-        # Mapeamento exato com a ordem solicitada: CT, Descrição CT, Desc. Operação, Temp. Maq., Operação, Quantidade, Standard, Tempo OP
+        # Mapeamento completo e correto de todas as colunas
         colunas_para_exibir = {
             'Ordem': 'OP',
             'Centro de trabalho': 'CT',
@@ -213,8 +213,8 @@ if termo_busca:
             'Operação': 'Operação',
             'Quantidade operação': 'Quantidade',
             'Quantidade básica': 'Standard',
-            'Tempo OP': 'Tempo OP',
-            'Tempo Produzido': 'T. Produzido',
+            'Tempo OP Formatado': 'Tempo OP',
+            'Tempo Produzido Formatado': 'T. Produzido',
             'Eficiência': 'Efic.'
         }
         
