@@ -14,7 +14,7 @@ st.set_page_config(
 st.markdown("""
 <style>
     .header-box {
-        background-color: #1e1e1e; /* Ajustado para dark mode padrão */
+        background-color: #1e1e1e;
         padding: 20px;
         border-radius: 10px;
         border-left: 5px solid #004a8f; 
@@ -130,6 +130,46 @@ if termo_busca:
             </div>
         """, unsafe_allow_html=True)
         
+        # --- NOVA TABELA SUSPENSA (RESUMO DE OPs VINCULADAS) ---
+        if tipo_busca == "Código Maxion (Material)":
+            with st.expander("📂 Resumo das OPs vinculadas a este Material", expanded=True):
+                # Agrupa por OP pegando os valores máximos/iniciais para o resumo
+                df_resumo_ops = df_filtrado.groupby('Ordem').agg({
+                    'Quantidade operação': 'max',
+                    'Qtd.boa total confirmada': 'max',
+                    'Status do sistema': 'first' 
+                }).reset_index()
+                
+                # Função para definir se a OP está Aberta ou Finalizada
+                def definir_status_op(row):
+                    status_sap = str(row['Status do sistema']).upper()
+                    qtd_planejada = row['Quantidade operação']
+                    qtd_produzida = row['Qtd.boa total confirmada']
+                    
+                    # Regras: Se tem ENC (Encerrada) ou TECO no status, ou se já produziu o planejado
+                    if 'ENC' in status_sap or 'TECO' in status_sap:
+                        return '✅ Finalizada'
+                    elif qtd_produzida >= qtd_planejada and qtd_planejada > 0:
+                         return '✅ Finalizada (Qtd Atingida)'
+                    else:
+                        return '⏳ Aberta'
+                        
+                df_resumo_ops['Situação da OP'] = df_resumo_ops.apply(definir_status_op, axis=1)
+                
+                # Renomeia colunas para exibição na tela
+                df_resumo_ops = df_resumo_ops.rename(columns={
+                    'Ordem': 'Nº da OP',
+                    'Quantidade operação': 'Qtd. Planejada',
+                    'Qtd.boa total confirmada': 'Qtd. Produzida',
+                    'Status do sistema': 'Status SAP'
+                })
+                
+                st.dataframe(
+                    df_resumo_ops[['Nº da OP', 'Qtd. Planejada', 'Qtd. Produzida', 'Status SAP', 'Situação da OP']], 
+                    use_container_width=True, 
+                    hide_index=True
+                )
+        
         st.markdown("### 📋 Detalhes das Operações")
         
         # Cálculos de tempo e eficiência
@@ -155,7 +195,7 @@ if termo_busca:
 
         # Organizando colunas para visualização
         colunas_para_exibir = {
-            'Ordem': 'OP', # Adicionado para diferenciar quando buscar por material
+            'Ordem': 'OP', 
             'Centro de trabalho': 'CT',
             'Descrição do centro de trabalho': 'Descrição CT',
             'Txt.breve operação': 'Desc. Operação',
@@ -174,7 +214,6 @@ if termo_busca:
         if 'Operação' in df_tabela.columns:
             df_tabela['Operação'] = pd.to_numeric(df_tabela['Operação'], errors='coerce')
             
-        # Ordena por OP e depois por Operação
         if 'OP' in df_tabela.columns and 'Operação' in df_tabela.columns:
             df_tabela = df_tabela.sort_values(by=['OP', 'Operação'])
             
