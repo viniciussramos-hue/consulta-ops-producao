@@ -111,13 +111,13 @@ with col_busca2:
 # --- REGRAS DE NEGÓCIO E EXIBIÇÃO ---
 if termo_busca:
     if tipo_busca == "Ordem de Produção (OP)":
-        df_filtrado = df_op[df_op['Ordem'] == termo_busca].copy()
+        df_base = df_op[df_op['Ordem'] == termo_busca].copy()
     else:
-        df_filtrado = df_op[df_op['Material'] == termo_busca].copy()
+        df_base = df_op[df_op['Material'] == termo_busca].copy()
     
-    if not df_filtrado.empty:
+    if not df_base.empty:
         # Cabeçalho de informações base
-        primeira_linha = df_filtrado.iloc[0]
+        primeira_linha = df_base.iloc[0]
         cod_maxion = primeira_linha.get('Material', 'N/A')
         desc_material = primeira_linha.get('Texto breve material', 'N/A')
         
@@ -134,37 +134,40 @@ if termo_busca:
             </div>
         """, unsafe_allow_html=True)
         
-        # Criação do DataFrame de OPs vinculadas para o filtro BI
-        df_resumo_ops = df_filtrado.groupby('Ordem').agg({
-            'Quantidade operação': 'max',
-            'Qtd.boa total confirmada': 'max',
-            'Status do sistema': 'first' 
-        }).reset_index()
-        
-        def definir_status_op(row):
-            status_sap = str(row['Status do sistema']).upper()
-            qtd_planejada = row['Quantidade operação']
-            qtd_produzida = row['Qtd.boa total confirmada']
-            
-            if 'ENC' in status_sap or 'TECO' in status_sap:
-                return '✅ Finalizada'
-            elif qtd_produzida >= qtd_planejada and qtd_planejada > 0:
-                 return '✅ Finalizada (Qtd Atingida)'
-            else:
-                return '⏳ Aberta'
-                
-        df_resumo_ops['Situação da OP'] = df_resumo_ops.apply(definir_status_op, axis=1)
-        df_resumo_ops = df_resumo_ops.rename(columns={
-            'Ordem': 'Nº da OP',
-            'Quantidade operação': 'Qtd. Planejada',
-            'Qtd.boa total confirmada': 'Qtd. Produzida',
-            'Status do sistema': 'Status SAP'
-        })
+        # Variável para controlar qual DataFrame será exibido nos detalhes
+        df_filtrado = df_base.copy()
         
         # --- TABELA SUSPENSA INTERATIVA (RESUMO DE OPs VINCULADAS) ---
         if tipo_busca == "Código Maxion (Material)":
             with st.expander("📂 Resumo das OPs vinculadas (Filtro BI)", expanded=True):
                 st.markdown("💡 *Toque em uma OP abaixo para filtrar os detalhes:*")
+                
+                df_resumo_ops = df_base.groupby('Ordem').agg({
+                    'Quantidade operação': 'max',
+                    'Qtd.boa total confirmada': 'max',
+                    'Status do sistema': 'first' 
+                }).reset_index()
+                
+                def definir_status_op(row):
+                    status_sap = str(row['Status do sistema']).upper()
+                    qtd_planejada = row['Quantidade operação']
+                    qtd_produzida = row['Qtd.boa total confirmada']
+                    
+                    if 'ENC' in status_sap or 'TECO' in status_sap:
+                        return '✅ Finalizada'
+                    elif qtd_produzida >= qtd_planejada and qtd_planejada > 0:
+                         return '✅ Finalizada (Qtd Atingida)'
+                    else:
+                        return '⏳ Aberta'
+                        
+                df_resumo_ops['Situação da OP'] = df_resumo_ops.apply(definir_status_op, axis=1)
+                
+                df_resumo_ops = df_resumo_ops.rename(columns={
+                    'Ordem': 'Nº da OP',
+                    'Quantidade operação': 'Qtd. Planejada',
+                    'Qtd.boa total confirmada': 'Qtd. Produzida',
+                    'Status do sistema': 'Status SAP'
+                })
                 
                 evento_tabela = st.dataframe(
                     df_resumo_ops[['Nº da OP', 'Qtd. Planejada', 'Qtd. Produzida', 'Status SAP', 'Situação da OP']], 
@@ -172,16 +175,16 @@ if termo_busca:
                     hide_index=True,
                     on_select="rerun",
                     selection_mode="single-row",
-                    key="tabela_resumo_ops"
+                    key="tabela_resumo_ops_v2"
                 )
                 
                 linhas_selecionadas = evento_tabela.selection.rows
                 if len(linhas_selecionadas) > 0:
                     op_clicada = df_resumo_ops.iloc[linhas_selecionadas[0]]['Nº da OP']
-                    df_filtrado = df_filtrado[df_filtrado['Ordem'] == op_clicada]
-                    st.success(f"Filtro ativo: OP **{op_clicada}**")
+                    df_filtrado = df_base[df_base['Ordem'] == op_clicada].copy()
+                    st.success(f"Filtro ativo: Exibindo apenas a OP **{op_clicada}**")
                 else:
-                    st.info("Exibindo todas as OPs vinculadas.")
+                    st.info("Exibindo detalhes de todas as OPs vinculadas.")
         
         st.markdown("### 📋 Detalhes das Operações")
         
@@ -204,7 +207,7 @@ if termo_busca:
             axis=1
         )
 
-        # Mapeamento com todas as colunas garantidas
+        # Mapeamento estrito com todas as colunas
         colunas_para_exibir = {
             'Ordem': 'OP',
             'Centro de trabalho': 'CT',
@@ -219,9 +222,9 @@ if termo_busca:
             'Eficiência': 'Efic.'
         }
         
-        # Garante que apenas colunas presentes no dataframe sejam tratadas
-        colunas_existentes = {k: v for k, v in colunas_para_exibir.items() if k in df_filtrado.columns}
-        df_tabela = df_filtrado[list(colunas_existentes.keys())].rename(columns=colunas_existentes)
+        # Garante a filtragem correta das colunas existentes
+        colunas_existentes = [col for col in colunas_para_exibir.keys() if col in df_filtrado.columns]
+        df_tabela = df_filtrado[colunas_existentes].rename(columns=colunas_para_exibir)
         
         if 'Operação' in df_tabela.columns:
             df_tabela['Operação'] = pd.to_numeric(df_tabela['Operação'], errors='coerce').fillna(0).astype(int)
