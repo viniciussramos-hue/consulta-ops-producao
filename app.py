@@ -48,7 +48,7 @@ def carregar_dados():
         df['Ordem'] = df['Ordem'].fillna(0).astype(int).astype(str)
         df['Material'] = df['Material'].fillna('').astype(str)
         
-        colunas_numericas = ['Quantidade operação', 'Quantidade básica', 'Qtd.boa total confirmada']
+        colunas_numericas = ['Quantidade operação', 'Quantidade básica', 'Qtd.boa total confirmada', 'Operação']
         for col in colunas_numericas:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
@@ -203,10 +203,12 @@ if termo_busca:
             axis=1
         )
 
+        # Mapeamento incluindo a coluna 'Operação' (do roteiro)
         colunas_para_exibir = {
             'Ordem': 'OP', 
+            'Operação': 'Op. Roteiro',
             'Centro de trabalho': 'CT',
-            'Txt.breve operação': 'Operação',
+            'Txt.breve operação': 'Descrição Operação',
             'Qtd.boa total confirmada': 'Qtd Boa',
             'Quantidade básica': 'Standard',
             'Tempo OP': 'T. Previsto',
@@ -217,11 +219,11 @@ if termo_busca:
         colunas_existentes = {k: v for k, v in colunas_para_exibir.items() if k in df_filtrado.columns}
         df_tabela = df_filtrado[list(colunas_existentes.keys())].rename(columns=colunas_existentes)
         
-        if 'Operação' in df_tabela.columns:
-            pass
+        if 'Op. Roteiro' in df_tabela.columns:
+            df_tabela['Op. Roteiro'] = pd.to_numeric(df_tabela['Op. Roteiro'], errors='coerce').fillna(0).astype(int)
             
-        if 'OP' in df_tabela.columns:
-            df_tabela = df_tabela.sort_values(by=['OP'])
+        if 'OP' in df_tabela.columns and 'Op. Roteiro' in df_tabela.columns:
+            df_tabela = df_tabela.sort_values(by=['OP', 'Op. Roteiro'])
             
         st.dataframe(df_tabela, use_container_width=True, hide_index=True)
         
