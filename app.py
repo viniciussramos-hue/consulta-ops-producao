@@ -134,14 +134,11 @@ if termo_busca:
             </div>
         """, unsafe_allow_html=True)
         
-        # Variável para controlar qual DataFrame será exibido nos detalhes
         df_filtrado = df_base.copy()
         
         # --- TABELA SUSPENSA INTERATIVA (RESUMO DE OPs VINCULADAS) ---
         if tipo_busca == "Código Maxion (Material)":
             with st.expander("📂 Resumo das OPs vinculadas (Filtro BI)", expanded=True):
-                st.markdown("💡 *Toque em uma OP abaixo para filtrar os detalhes:*")
-                
                 df_resumo_ops = df_base.groupby('Ordem').agg({
                     'Quantidade operação': 'max',
                     'Qtd.boa total confirmada': 'max',
@@ -169,22 +166,22 @@ if termo_busca:
                     'Status do sistema': 'Status SAP'
                 })
                 
-                evento_tabela = st.dataframe(
+                # Exibição limpa da tabela de resumo sem conflitos de índice
+                st.dataframe(
                     df_resumo_ops[['Nº da OP', 'Qtd. Planejada', 'Qtd. Produzida', 'Status SAP', 'Situação da OP']], 
                     use_container_width=True, 
-                    hide_index=True,
-                    on_select="rerun",
-                    selection_mode="single-row",
-                    key="tabela_resumo_ops_v2"
+                    hide_index=True
                 )
                 
-                linhas_selecionadas = evento_tabela.selection.rows
-                if len(linhas_selecionadas) > 0:
-                    op_clicada = df_resumo_ops.iloc[linhas_selecionadas[0]]['Nº da OP']
-                    df_filtrado = df_base[df_base['Ordem'] == op_clicada].copy()
-                    st.success(f"Filtro ativo: Exibindo apenas a OP **{op_clicada}**")
+                # Seletor direto e seguro para filtrar a OP desejada sem erros de índice
+                lista_ops_material = ["Todas"] + df_resumo_ops['Nº da OP'].tolist()
+                op_selecionada_bi = st.selectbox("🎯 Filtrar detalhes por OP específica:", lista_ops_material)
+                
+                if op_selecionada_bi != "Todas":
+                    df_filtrado = df_base[df_base['Ordem'] == op_selecionada_bi].copy()
+                    st.success(f"Filtro ativo: Exibindo detalhes apenas da OP **{op_selecionada_bi}**")
                 else:
-                    st.info("Exibindo detalhes de todas as OPs vinculadas.")
+                    st.info("Exibindo detalhes de **todas** as OPs vinculadas.")
         
         st.markdown("### 📋 Detalhes das Operações")
         
@@ -222,7 +219,6 @@ if termo_busca:
             'Eficiência': 'Efic.'
         }
         
-        # Garante a filtragem correta das colunas existentes
         colunas_existentes = [col for col in colunas_para_exibir.keys() if col in df_filtrado.columns]
         df_tabela = df_filtrado[colunas_existentes].rename(columns=colunas_para_exibir)
         
