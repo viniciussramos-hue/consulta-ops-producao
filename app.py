@@ -44,7 +44,11 @@ st.markdown("""
 @st.cache_data
 def carregar_dados():
     try:
-        df = pd.read_excel("Coois_OP.xlsx", sheet_name="Data")
+        # Lê dinamicamente a primeira aba do arquivo Excel, sem depender de nome fixo
+        xls = pd.ExcelFile("Coois_OP.xlsx")
+        primeira_aba = xls.sheet_names[0]
+        df = pd.read_excel("Coois_OP.xlsx", sheet_name=primeira_aba)
+        
         df['Ordem'] = df['Ordem'].fillna(0).astype(int).astype(str)
         df['Material'] = df['Material'].fillna('').astype(str)
         
@@ -168,7 +172,6 @@ if termo_busca:
                     'Status do sistema': 'Status SAP'
                 })
                 
-                # Tabela interativa com captura de clique
                 evento_tabela = st.dataframe(
                     df_resumo_ops[['Nº da OP', 'Qtd. Planejada', 'Qtd. Produzida', 'Status SAP', 'Situação da OP']], 
                     use_container_width=True, 
@@ -178,7 +181,6 @@ if termo_busca:
                     key="tabela_bi_ops"
                 )
                 
-                # Tratamento seguro da linha clicada
                 linhas_selecionadas = evento_tabela.selection.rows
                 if len(linhas_selecionadas) > 0:
                     idx_clicado = linhas_selecionadas[0]
